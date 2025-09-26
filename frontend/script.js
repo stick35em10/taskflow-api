@@ -1,7 +1,17 @@
 //const API_URL = 'http://localhost:5000/api/tasks';
 // Usa o nome do serviço do Docker Compose
-const API_URL = 'http://localhost:3003/api/tasks'; // Para desenvolvimento local
+//const API_URL = 'http://localhost:3003/api/tasks'; // Para desenvolvimento local
 // const API_URL = '/api/tasks'; // Para produção com proxy
+
+// Configuração automática da API URL
+const getApiBaseUrl = () => {
+    if (window.location.hostname.includes('render.com')) {
+        return '/api'; // Mesmo domínio no Render
+    }
+    return 'http://localhost:10000/api'; // Desenvolvimento local
+};
+
+const API_URL = `${getApiBaseUrl()}/tasks`;
 
 // Carregar tarefas ao iniciar
 document.addEventListener('DOMContentLoaded', loadTasks);
@@ -96,3 +106,6 @@ async function deleteTask(id) {
         }
     }
 }
+
+// ... resto do código permanece igual
+console.log('🔗 API URL:', API_URL);

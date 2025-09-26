@@ -1,30 +1,17 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-// Conecta ao MongoDB
+// Conecta ao MongoDB (Render fornece MONGODB_URI)
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://mongodb:27017/taskflow';
 
-mongoose.connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
+mongoose.connect(MONGODB_URI)
 .then(() => console.log('✅ Conectado ao MongoDB'))
 .catch(err => console.error('❌ Erro ao conectar MongoDB:', err));
-
-// Schema e Model do MongoDB
-const taskSchema = new mongoose.Schema({
-    title: { type: String, required: true },
-    description: String,
-    priority: { type: String, enum: ['baixa', 'média', 'alta'], default: 'média' },
-    status: { type: String, enum: ['pendente', 'em-progresso', 'concluída'], default: 'pendente' },
-    createdAt: { type: Date, default: Date.now }
-});
-
-const Task = mongoose.model('Task', taskSchema);
 
 // Middleware
 app.use(cors());
@@ -33,6 +20,7 @@ app.use(express.json());
 // 🔁 ROTAS DA API REST
 app.get('/api/tasks', async (req, res) => {
     try {
+        const Task = mongoose.model('Task');
         const tasks = await Task.find().sort({ createdAt: -1 });
         res.json(tasks);
     } catch (error) {
@@ -42,6 +30,7 @@ app.get('/api/tasks', async (req, res) => {
 
 app.post('/api/tasks', async (req, res) => {
     try {
+        const Task = mongoose.model('Task');
         const task = new Task(req.body);
         await task.save();
         res.status(201).json(task);
@@ -69,8 +58,8 @@ app.delete('/api/tasks/:id', async (req, res) => {
 });
 
 // Rota de health check
-app.get('/health', (req, res) => {
-    res.json({ status: 'OK', timestamp: new Date().toISOString() });
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 app.listen(PORT, () => {

@@ -1,0 +1,41 @@
+version: '2.4'
+
+services:
+  # Serviço do Backend (API)
+  backend:
+    build: ./backend
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - MONGODB_URI=mongodb://mongodb:27017/taskflow
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+
+  # Serviço do Frontend
+  frontend:
+    build: ./frontend
+    ports:
+      - "3003:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # Serviço do MongoDB
+  mongodb:
+    image: mongo:6.0
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_DATABASE=taskflow
+    volumes:
+      - mongodb_data:/data/db
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:

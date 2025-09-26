@@ -334,3 +334,68 @@ async function testConnection() {
 
 // Testa a conexão ao carregar
 testConnection();
+
+// 🔧 CORREÇÃO: Funções globais para os eventos onclick
+window.updateTask = async function(id, status) {
+    try {
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const updatedTask = await response.json();
+        const taskIndex = tasks.findIndex(t => t.id === id);
+        
+        if (taskIndex !== -1) {
+            tasks[taskIndex] = updatedTask;
+            renderTasks();
+            updateStats();
+            showNotification('✅ Status da tarefa atualizado!', 'success');
+        }
+        
+    } catch (error) {
+        console.error('❌ Erro ao atualizar tarefa:', error);
+        showNotification('❌ Erro ao atualizar tarefa', 'error');
+    }
+};
+
+window.deleteTask = async function(id) {
+    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        tasks = tasks.filter(t => t.id !== id);
+        renderTasks();
+        updateStats();
+        showNotification('✅ Tarefa excluída com sucesso!', 'success');
+        
+    } catch (error) {
+        console.error('❌ Erro ao excluir tarefa:', error);
+        showNotification('❌ Erro ao excluir tarefa', 'error');
+    }
+};
+
+window.editTask = function(id) {
+    showNotification('✏️ Funcionalidade de edição em desenvolvimento...', 'info');
+};
+
+// 🔧 CORREÇÃO: Também torne estas funções globais
+window.renderTasks = renderTasks;
+window.updateStats = updateStats;
+window.showNotification = showNotification

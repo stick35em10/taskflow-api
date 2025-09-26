@@ -1,0 +1,29 @@
+version: 1
+
+services:
+  # Backend API + Frontend (servindo tudo junto)
+  - type: web
+    name: taskflow-app
+    env: node
+    plan: free
+    region: ohio  # ou virginia, oregon
+    buildCommand: |
+      cd backend && npm install
+      # Se tiver build do frontend, adicione comandos aqui
+    startCommand: cd backend && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        fromDatabase:
+          name: taskflow-db
+          property: connectionString
+    healthCheckPath: /health
+
+  # Database MongoDB
+  - type: database
+    name: taskflow-db
+    databaseName: taskflow
+    plan: free
+    region: ohio
+    ipAllowList: []  # Permitir todas IPs

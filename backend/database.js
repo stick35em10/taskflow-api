@@ -3,8 +3,10 @@ require('dotenv').config();
 
 // Configuração do PostgreSQL
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  connectionString: process.env.DATABASE_URL || 'postgresql://localhost:5432/taskflow',
+  ssl: process.env.NODE_ENV === 'production' ? { 
+    rejectUnauthorized: false 
+  } : false
 });
 
 // Testar conexão
@@ -13,7 +15,8 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Erro na conexão PostgreSQL:', err);
+  console.error('❌ Erro fatal na conexão PostgreSQL:', err);
+  process.exit(-1);
 });
 
 // Inicializar database

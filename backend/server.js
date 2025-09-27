@@ -11,7 +11,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+// Usar novas rotas
+app.use('/api/projects', projectsRoutes);
+app.use('/api/people', peopleRoutes);
+app.use('/api/tasks', tasksRoutes);
+
+
 // 🔁 ROTAS DA API COM POSTGRESQL
+
+// Importar novas rotas
+const projectsRoutes = require('./routes/projects');
+const peopleRoutes = require('./routes/people');
+const tasksRoutes = require('./routes/tasks');
 
 // Health check
 app.get('/health', async (req, res) => {

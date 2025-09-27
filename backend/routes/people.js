@@ -2,7 +2,7 @@ const express = require('express');
 const { pool } = require('../database');
 const router = express.Router();
 
-// GET /api/people - Listar todas as pessoas
+// GET /api/people - Listar todas as pessoas 
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`

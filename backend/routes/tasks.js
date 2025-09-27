@@ -2,7 +2,7 @@ const express = require('express');
 const { pool } = require('../database');
 const router = express.Router();
 
-// GET /api/tasks - Listar tarefas com relações
+// GET /api/tasks - Listar tarefas com relações 
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`

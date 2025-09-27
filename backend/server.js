@@ -6,6 +6,11 @@ const { pool, initDatabase } = require('./database');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// Importar novas rotas
+const projectsRoutes = require('./routes/projects');
+const peopleRoutes = require('./routes/people');
+const tasksRoutes = require('./routes/tasks');
+
 //  Middleware
 app.use(cors());
 app.use(express.json());
@@ -19,10 +24,6 @@ app.use('/api/tasks', tasksRoutes);
 
 // 🔁 ROTAS DA API COM POSTGRESQL
 
-// Importar novas rotas
-const projectsRoutes = require('./routes/projects');
-const peopleRoutes = require('./routes/people');
-const tasksRoutes = require('./routes/tasks');
 
 // Health check
 app.get('/health', async (req, res) => {

@@ -7,10 +7,18 @@ services:
     plan: free
     region: ohio
     buildCommand: |
+      echo "📦 Instalando dependências..."
       cd backend && npm install
+      echo "🚀 Executando migrações..."
+      cd backend && npm run migrate
     startCommand: |
+      echo "🎯 Iniciando TaskFlow com PostgreSQL..."
       cd backend && node server.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: taskflow-db
+          property: connectionString
     healthCheckPath: /health

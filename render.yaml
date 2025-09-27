@@ -7,13 +7,34 @@ services:
     plan: free
     region: ohio
     buildCommand: |
-      echo "📦 Instalando dependências..."
-      cd backend && npm install
-      echo "🚀 Executando migrações..."
-      cd backend && npm run migrate
+      echo "🔍 Detectando estrutura do projeto..."
+      ls -la
+      
+      if [ -f "package.json" ]; then
+        echo "✅ Estrutura: Arquivos na RAIZ"
+        npm install
+        npm run migrate
+      elif [ -d "src" ] && [ -f "src/package.json" ]; then
+        echo "✅ Estrutura: Pasta SRC"
+        cd src && npm install
+        cd src && npm run migrate
+      else
+        echo "❌ Estrutura não reconhecida"
+        echo "📊 Procurando package.json..."
+        find . -name "package.json" -maxdepth 2
+        exit 1
+      fi
+      
     startCommand: |
-      echo "🎯 Iniciando TaskFlow com PostgreSQL..."
-      cd backend && node server.js
+      if [ -f "server.js" ]; then
+        node server.js
+      elif [ -f "src/server.js" ]; then
+        cd src && node server.js
+      else
+        echo "❌ server.js não encontrado"
+        exit 1
+      fi
+      
     envVars:
       - key: NODE_ENV
         value: production

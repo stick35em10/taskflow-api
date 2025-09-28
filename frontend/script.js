@@ -1,431 +1,358 @@
-// Configuração da API URL para Render
-const getApiBaseUrl = () => {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    return isLocal ? 'http://localhost:10000' : '';
+// Configuração
+const API_BASE_URL = window.location.origin;
+const API_URLS = {
+  tasks: `${API_BASE_URL}/api/tasks`,
+  projects: `${API_BASE_URL}/api/projects`,
+  people: `${API_BASE_URL}/api/people`
 };
 
-const API_BASE_URL = getApiBaseUrl();
-const API_URL = `${API_BASE_URL}/api/tasks`;
+console.log('🚀 TaskFlow Pro - Sistema Completo Iniciado');
 
-// Atualiza o display da URL da API
-document.getElementById('apiUrl').textContent = API_URL || '/api/tasks';
-
-// Estado da aplicação
+// Estado global
 let tasks = [];
-let currentFilter = 'all';
-let currentSearch = '';
+let projects = [];
+let people = [];
+let currentFilters = {
+  project: '',
+  person: '',
+  status: 'all'
+};
 
 // Elementos DOM
 const elements = {
-    taskForm: document.getElementById('taskForm'),
-    tasksContainer: document.getElementById('tasksContainer'),
-    loadingMessage: document.getElementById('loadingMessage'),
-    errorMessage: document.getElementById('errorMessage'),
-    totalTasks: document.getElementById('totalTasks'),
-    pendingTasks: document.getElementById('pendingTasks'),
-    completedTasks: document.getElementById('completedTasks'),
-    searchInput: document.getElementById('searchInput'),
-    submitBtn: document.getElementById('submitBtn')
+  taskForm: document.getElementById('taskForm'),
+  tasksContainer: document.getElementById('tasksContainer'),
+  projectsContainer: document.getElementById('projectsContainer'),
+  peopleContainer: document.getElementById('peopleContainer'),
+  projectFilter: document.getElementById('projectFilter'),
+  personFilter: document.getElementById('personFilter'),
+  statusFilter: document.getElementById('statusFilter'),
+  projectSelect: document.getElementById('project_id'),
+  personSelect: document.getElementById('assigned_to'),
+  searchInput: document.getElementById('searchInput')
 };
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 TaskFlow Frontend Iniciado');
-    console.log('🔗 API URL:', API_URL);
-    
-    loadTasks();
-    setupEventListeners();
+  console.log('📱 Inicializando TaskFlow Pro...');
+  loadInitialData();
+  setupEventListeners();
 });
 
-// Configura event listeners
-function setupEventListeners() {
-    // Formulário de nova tarefa
-    elements.taskForm.addEventListener('submit', handleAddTask);
+// Carregar dados iniciais
+async function loadInitialData() {
+  try {
+    showLoading(true);
     
-    // Filtros
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentFilter = e.target.dataset.filter;
-            renderTasks();
-        });
-    });
+    const [tasksData, projectsData, peopleData] = await Promise.all([
+      fetch(API_URLS.tasks).then(r => r.json()),
+      fetch(API_URLS.projects).then(r => r.json()),
+      fetch(API_URLS.people).then(r => r.json())
+    ]);
     
-    // Busca
-    elements.searchInput.addEventListener('input', (e) => {
-        currentSearch = e.target.value.toLowerCase();
-        renderTasks();
-    });
+    tasks = tasksData;
+    projects = projectsData;
+    people = peopleData;
+    
+    console.log(`✅ Dados carregados: ${tasks.length} tarefas, ${projects.length} projetos, ${people.length} pessoas`);
+    
+    renderAll();
+    showNotification('🎉 Sistema carregado com sucesso!', 'success');
+    
+  } catch (error) {
+    console.error('❌ Erro ao carregar dados:', error);
+    showNotification('⚠️ Erro ao carregar dados da API', 'error');
+  } finally {
+    showLoading(false);
+  }
 }
 
-// Carrega tarefas da API
-async function loadTasks() {
-    try {
-        elements.loadingMessage.style.display = 'block';
-        elements.errorMessage.style.display = 'none';
-        
-        const response = await fetch(API_URL);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        tasks = await response.json();
-        renderTasks();
-        updateStats();
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar tarefas:', error);
-        elements.errorMessage.style.display = 'block';
-        elements.errorMessage.innerHTML = `
-            ❌ Erro ao conectar com a API: ${error.message}<br>
-            <small>Verifique se o servidor está rodando em ${API_URL}</small>
-        `;
-    } finally {
-        elements.loadingMessage.style.display = 'none';
-    }
+// Renderizar tudo
+function renderAll() {
+  renderTasks();
+  renderProjects();
+  renderPeople();
+  updateSelects();
+  updateFilters();
 }
 
-// Adiciona nova tarefa
-async function handleAddTask(e) {
-    e.preventDefault();
-    
-    const formData = new FormData(elements.taskForm);
-    const taskData = {
-        title: formData.get('title') || document.getElementById('title').value,
-        description: document.getElementById('description').value,
-        priority: document.getElementById('priority').value
-    };
-    
-    if (!taskData.title.trim()) {
-        showNotification('⚠️ Por favor, insira um título para a tarefa', 'warning');
-        return;
-    }
-    
-    try {
-        setLoadingState(true);
-        
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(taskData)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const newTask = await response.json();
-        tasks.unshift(newTask);
-        
-        elements.taskForm.reset();
-        renderTasks();
-        updateStats();
-        showNotification('✅ Tarefa adicionada com sucesso!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao adicionar tarefa:', error);
-        showNotification('❌ Erro ao adicionar tarefa', 'error');
-    } finally {
-        setLoadingState(false);
-    }
-}
-
-// Renderiza as tarefas na tela
+// Renderizar tarefas
 function renderTasks() {
-    let filteredTasks = tasks;
+  const container = elements.tasksContainer;
+  if (!container) return;
+  
+  let filteredTasks = tasks.filter(task => {
+    const projectMatch = !currentFilters.project || task.project_id == currentFilters.project;
+    const personMatch = !currentFilters.person || task.assigned_to == currentFilters.person;
+    const statusMatch = currentFilters.status === 'all' || task.status === currentFilters.status;
+    const searchMatch = !currentFilters.search || 
+      task.title.toLowerCase().includes(currentFilters.search) ||
+      task.description.toLowerCase().includes(currentFilters.search);
     
-    // Aplica filtro
-    if (currentFilter !== 'all') {
-        filteredTasks = tasks.filter(task => task.status === currentFilter);
-    }
-    
-    // Aplica busca
-    if (currentSearch) {
-        filteredTasks = filteredTasks.filter(task => 
-            task.title.toLowerCase().includes(currentSearch) ||
-            task.description.toLowerCase().includes(currentSearch)
-        );
-    }
-    
-    elements.tasksContainer.innerHTML = '';
-    
-    if (filteredTasks.length === 0) {
-        elements.tasksContainer.innerHTML = `
-            <div class="empty-state">
-                <p>${currentSearch || currentFilter !== 'all' ? 'Nenhuma tarefa encontrada com os filtros aplicados' : 'Nenhuma tarefa encontrada. Adicione sua primeira tarefa!'}</p>
-            </div>
-        `;
-        return;
-    }
-    
-    filteredTasks.forEach(task => {
-        const taskElement = createTaskElement(task);
-        elements.tasksContainer.appendChild(taskElement);
-    });
+    return projectMatch && personMatch && statusMatch && searchMatch;
+  });
+  
+  container.innerHTML = filteredTasks.map(task => `
+    <div class="task-item prioridade-${task.priority} ${task.status === 'concluída' ? 'concluída' : ''}">
+      <div class="task-badges">
+        ${task.project_name ? `<span class="badge-project" style="background: ${task.project_color}">${task.project_name}</span>` : ''}
+        ${task.assigned_name ? `<span class="badge-person">👤 ${task.assigned_name}</span>` : ''}
+        <span class="badge-priority badge-priority-${task.priority}">${getPriorityIcon(task.priority)} ${task.priority}</span>
+        <span class="badge-status">${getStatusIcon(task.status)} ${task.status}</span>
+      </div>
+      <h4>${task.title}</h4>
+      ${task.description ? `<p>${task.description}</p>` : ''}
+      <small>📅 Criada em: ${formatDate(task.createdat)}</small>
+      <div class="task-actions">
+        ${task.status !== 'concluída' ? 
+          `<button class="btn-concluir" onclick="updateTask(${task.id}, 'concluída')">✅ Concluir</button>` : 
+          `<button class="btn-reabrir" onclick="updateTask(${task.id}, 'pendente')">↩️ Reabrir</button>`
+        }
+        <button class="btn-editar" onclick="editTask(${task.id})">✏️ Editar</button>
+        <button class="btn-excluir" onclick="deleteTask(${task.id})">🗑️ Excluir</button>
+      </div>
+    </div>
+  `).join('');
+  
+  // Atualizar estatísticas
+  updateStats();
 }
 
-// Cria elemento HTML para uma tarefa
-function createTaskElement(task) {
-    const taskElement = document.createElement('div');
-    taskElement.className = `task-item prioridade-${task.priority} ${task.status === 'concluída' ? 'concluída' : ''}`;
-    
-    taskElement.innerHTML = `
-        <h4>${escapeHtml(task.title)}</h4>
-        ${task.description ? `<p>${escapeHtml(task.description)}</p>` : ''}
-        <small>
-            📊 <strong>Prioridade:</strong> ${task.priority} | 
-            📝 <strong>Status:</strong> ${task.status} | 
-            📅 <strong>Criada em:</strong> ${formatDate(task.createdAt)}
-        </small>
-        <div class="task-actions">
-            ${task.status !== 'concluída' ? 
-                `<button class="btn-concluir" onclick="updateTask(${task.id}, 'concluída')">✅ Concluir</button>` : 
-                `<button class="btn-concluir" onclick="updateTask(${task.id}, 'pendente')">↩️ Reabrir</button>`
-            }
-            <button class="btn-editar" onclick="editTask(${task.id})">✏️ Editar</button>
-            <button class="btn-excluir" onclick="deleteTask(${task.id})">🗑️ Excluir</button>
+// Renderizar projetos
+function renderProjects() {
+  const container = elements.projectsContainer;
+  if (!container) return;
+  
+  container.innerHTML = projects.map(project => {
+    const projectTasks = tasks.filter(t => t.project_id === project.id).length;
+    return `
+      <div class="project-card" style="border-left-color: ${project.color}">
+        <div class="card-header">
+          <h4>${project.name}</h4>
+          <span class="task-count">${projectTasks}</span>
         </div>
+        <p>${project.description || 'Sem descrição'}</p>
+        <div class="project-actions">
+          <button onclick="filterByProject(${project.id})" class="btn-filter">🔍 Ver tarefas</button>
+        </div>
+      </div>
     `;
-    
-    return taskElement;
+  }).join('');
 }
 
-// Atualiza estatísticas
-function updateStats() {
-    const total = tasks.length;
-    const pending = tasks.filter(t => t.status === 'pendente').length;
-    const completed = tasks.filter(t => t.status === 'concluída').length;
-    
-    elements.totalTasks.textContent = total;
-    elements.pendingTasks.textContent = pending;
-    elements.completedTasks.textContent = completed;
-}
-
-// Atualiza status da tarefa
-async function updateTask(id, status) {
-    try {
-        const response = await fetch(`${API_URL}/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ status })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const updatedTask = await response.json();
-        const taskIndex = tasks.findIndex(t => t.id === id);
-        
-        if (taskIndex !== -1) {
-            tasks[taskIndex] = updatedTask;
-            renderTasks();
-            updateStats();
-            showNotification('✅ Status da tarefa atualizado!', 'success');
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao atualizar tarefa:', error);
-        showNotification('❌ Erro ao atualizar tarefa', 'error');
-    }
-}
-
-// Exclui tarefa
-async function deleteTask(id) {
-    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) {
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/${id}`, {
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        tasks = tasks.filter(t => t.id !== id);
-        renderTasks();
-        updateStats();
-        showNotification('✅ Tarefa excluída com sucesso!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao excluir tarefa:', error);
-        showNotification('❌ Erro ao excluir tarefa', 'error');
-    }
-}
-
-// Funções auxiliares
-function setLoadingState(loading) {
-    const btnText = elements.submitBtn.querySelector('.btn-text');
-    const btnLoading = elements.submitBtn.querySelector('.btn-loading');
-    
-    if (loading) {
-        btnText.style.display = 'none';
-        btnLoading.style.display = 'inline';
-        elements.submitBtn.disabled = true;
-    } else {
-        btnText.style.display = 'inline';
-        btnLoading.style.display = 'none';
-        elements.submitBtn.disabled = false;
-    }
-}
-
-function showNotification(message, type) {
-    // Implementação simples de notificação
-    const notification = document.createElement('div');
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        padding: 15px 20px;
-        border-radius: 5px;
-        color: white;
-        font-weight: bold;
-        z-index: 1000;
-        background: ${type === 'success' ? '#27ae60' : type === 'warning' ? '#f39c12' : '#e74c3c'};
+// Renderizar pessoas
+function renderPeople() {
+  const container = elements.peopleContainer;
+  if (!container) return;
+  
+  container.innerHTML = people.map(person => {
+    const personTasks = tasks.filter(t => t.assigned_to === person.id).length;
+    return `
+      <div class="person-card">
+        <div class="card-header">
+          <h4>${person.name}</h4>
+          <span class="task-count">${personTasks}</span>
+        </div>
+        <p>${person.email || 'Sem email'}</p>
+        <small>${person.role || 'Membro da equipa'}</small>
+        <div class="person-actions">
+          <button onclick="filterByPerson(${person.id})" class="btn-filter">🔍 Ver tarefas</button>
+        </div>
+      </div>
     `;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
+  }).join('');
 }
 
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+// Atualizar selects
+function updateSelects() {
+  if (elements.projectSelect) {
+    elements.projectSelect.innerHTML = '<option value="">Selecionar Projeto</option>' +
+      projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+  
+  if (elements.personSelect) {
+    elements.personSelect.innerHTML = '<option value="">Atribuir a...</option>' +
+      people.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
 }
 
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+// Atualizar filtros
+function updateFilters() {
+  if (elements.projectFilter) {
+    elements.projectFilter.innerHTML = '<option value="">Todos os Projetos</option>' +
+      projects.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+  
+  if (elements.personFilter) {
+    elements.personFilter.innerHTML = '<option value="">Todas as Pessoas</option>' +
+      people.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  }
+}
+
+// Configurar event listeners
+function setupEventListeners() {
+  // Formulário de tarefa
+  if (elements.taskForm) {
+    elements.taskForm.addEventListener('submit', handleAddTask);
+  }
+  
+  // Filtros
+  if (elements.projectFilter) {
+    elements.projectFilter.addEventListener('change', (e) => {
+      currentFilters.project = e.target.value;
+      renderTasks();
     });
+  }
+  
+  if (elements.personFilter) {
+    elements.personFilter.addEventListener('change', (e) => {
+      currentFilters.person = e.target.value;
+      renderTasks();
+    });
+  }
+  
+  if (elements.statusFilter) {
+    elements.statusFilter.addEventListener('change', (e) => {
+      currentFilters.status = e.target.value;
+      renderTasks();
+    });
+  }
+  
+  // Busca
+  if (elements.searchInput) {
+    elements.searchInput.addEventListener('input', (e) => {
+      currentFilters.search = e.target.value.toLowerCase();
+      renderTasks();
+    });
+  }
 }
 
-// Funções para modal de edição (para implementação futura)
-function editTask(id) {
-    showNotification('✏️ Funcionalidade de edição em desenvolvimento...', 'info');
-}
-
-// Teste de conexão com a API
-async function testConnection() {
-    try {
-        const response = await fetch(`${API_BASE_URL}/health`);
-        if (response.ok) {
-            console.log('✅ Conexão com a API estabelecida');
-        }
-    } catch (error) {
-        console.warn('⚠️ Não foi possível conectar com a API');
+// Adicionar nova tarefa
+async function handleAddTask(e) {
+  e.preventDefault();
+  
+  const formData = {
+    title: document.getElementById('title').value,
+    description: document.getElementById('description').value,
+    priority: document.getElementById('priority').value,
+    project_id: document.getElementById('project_id').value || null,
+    assigned_to: document.getElementById('assigned_to').value || null
+  };
+  
+  try {
+    const response = await fetch(API_URLS.tasks, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+    
+    if (response.ok) {
+      const newTask = await response.json();
+      tasks.unshift(newTask);
+      renderAll();
+      elements.taskForm.reset();
+      showNotification('✅ Tarefa criada com sucesso!', 'success');
+    } else {
+      throw new Error('Erro ao criar tarefa');
     }
+  } catch (error) {
+    console.error('❌ Erro ao criar tarefa:', error);
+    showNotification('❌ Erro ao criar tarefa', 'error');
+  }
 }
 
-// Testa a conexão ao carregar
-testConnection();
-
-// 🔧 CORREÇÃO: Funções globais para os eventos onclick
+// 🔧 FUNÇÕES GLOBAIS
 window.updateTask = async function(id, status) {
-    try {
-        console.log(`🔄 Atualizando tarefa ${id} para: ${status}`);
-
-        const response = await fetch(`${API_URL}/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ status })
-        });
-        
-        if (!response.ok) {
-            // Tenta parsear o erro
-            let errorMessage = `HTTP ${response.status}`;
-            try {
-                const errorData = await response.json();
-                errorMessage = errorData.error || errorMessage;
-            } catch (e) {
-                // Ignora erro de parse
-            }
-            throw new Error(errorMessage);
-        }
-        
-        const updatedTask = await response.json();
-        const taskIndex = tasks.findIndex(t => t.id === id);
-        
-        if (taskIndex !== -1) {
-            tasks[taskIndex] = updatedTask;
-            renderTasks();
-            updateStats();
-            showNotification('✅ Status da tarefa atualizado!', 'success');
-        }
-        
-    } catch (error) {
-        console.error('❌ Erro ao atualizar tarefa:', error);
-
-        // Fallback local se for erro de rede/CORS
-        if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-        const taskIndex = tasks.findIndex(t => t.id === id);
-        if (taskIndex !== -1) {
-            tasks[taskIndex].status = status;
-            renderTasks();
-            updateStats();
-            showNotification('🔧 Status atualizado localmente', 'info');
-        }
-        } else {
-        showNotification(`❌ Erro: ${error.message}`, 'error');
-        }
+  try {
+    const response = await fetch(`${API_URLS.tasks}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status })
+    });
+    
+    if (response.ok) {
+      const updatedTask = await response.json();
+      const taskIndex = tasks.findIndex(t => t.id === id);
+      if (taskIndex !== -1) {
+        tasks[taskIndex] = updatedTask;
+      }
+      renderTasks();
+      showNotification('✅ Status atualizado!', 'success');
     }
+  } catch (error) {
+    console.error('❌ Erro ao atualizar tarefa:', error);
+    showNotification('❌ Erro ao atualizar tarefa', 'error');
+  }
 };
 
 window.deleteTask = async function(id) {
-    if (!confirm('Tem certeza que deseja excluir esta tarefa?')) {
-        return;
-    }
+  if (!confirm('Tem certeza que deseja excluir esta tarefa?')) return;
+  
+  try {
+    const response = await fetch(`${API_URLS.tasks}/${id}`, {
+      method: 'DELETE'
+    });
     
-    try {
-        const response = await fetch(`${API_URL}/${id}`, {
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        tasks = tasks.filter(t => t.id !== id);
-        renderTasks();
-        updateStats();
-        showNotification('✅ Tarefa excluída com sucesso!', 'success');
-        
-    } catch (error) {
-        console.error('❌ Erro ao excluir tarefa:', error);
-        // Fallback local
-        if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
-        tasks = tasks.filter(t => t.id !== id);
-        renderTasks();
-        updateStats();
-        showNotification('🗑️ Tarefa excluída localmente', 'info');
-        } else {
-        showNotification(`❌ Erro: ${error.message}`, 'error');
-        }
+    if (response.ok) {
+      tasks = tasks.filter(t => t.id !== id);
+      renderAll();
+      showNotification('🗑️ Tarefa excluída!', 'success');
     }
+  } catch (error) {
+    console.error('❌ Erro ao excluir tarefa:', error);
+    showNotification('❌ Erro ao excluir tarefa', 'error');
+  }
+};
+
+window.filterByProject = function(projectId) {
+  currentFilters.project = projectId;
+  if (elements.projectFilter) elements.projectFilter.value = projectId;
+  renderTasks();
+  showNotification(`🔍 Filtrando por: ${projects.find(p => p.id === projectId)?.name}`, 'info');
+};
+
+window.filterByPerson = function(personId) {
+  currentFilters.person = personId;
+  if (elements.personFilter) elements.personFilter.value = personId;
+  renderTasks();
+  showNotification(`🔍 Filtrando por: ${people.find(p => p.id === personId)?.name}`, 'info');
 };
 
 window.editTask = function(id) {
-    showNotification('✏️ Funcionalidade de edição em desenvolvimento...', 'info');
+  showNotification('✏️ Funcionalidade de edição em desenvolvimento...', 'info');
 };
 
-// 🔧 CORREÇÃO: Também torne estas funções globais
-window.renderTasks = renderTasks;
-window.updateStats = updateStats;
-window.showNotification = showNotification
+// Funções auxiliares
+function updateStats() {
+  const totalTasks = document.getElementById('totalTasks');
+  const pendingTasks = document.getElementById('pendingTasks');
+  const completedTasks = document.getElementById('completedTasks');
+  
+  if (totalTasks) totalTasks.textContent = tasks.length;
+  if (pendingTasks) pendingTasks.textContent = tasks.filter(t => t.status === 'pendente').length;
+  if (completedTasks) completedTasks.textContent = tasks.filter(t => t.status === 'concluída').length;
+}
+
+function showLoading(loading) {
+  const loader = document.getElementById('loadingMessage');
+  if (loader) loader.style.display = loading ? 'block' : 'none';
+}
+
+function getPriorityIcon(priority) {
+  const icons = { alta: '🔴', média: '🟡', baixa: '🟢' };
+  return icons[priority] || '⚪';
+}
+
+function getStatusIcon(status) {
+  const icons = { pendente: '⏳', 'em-progresso': '🔄', concluída: '✅' };
+  return icons[status] || '📝';
+}
+
+function formatDate(dateString) {
+  return new Date(dateString).toLocaleDateString('pt-BR');
+}
+
+function showNotification(message, type) {
+  // Implementação simples
+  alert(`📢 ${message}`);
+}

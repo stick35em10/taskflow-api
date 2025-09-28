@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskFlow - Gerenciador de Tarefas</title>
+    <title>TaskFlow - Gestão de Tarefas com Projetos</title>
     <meta name="description" content="Sistema de gerenciamento de tarefas desenvolvido com JavaScript e Node.js">
     <link rel="stylesheet" href="style.css">
 </head>
@@ -28,7 +28,107 @@
                 </ul>
             </div>
         </div>
+         <!-- Gestão de Projetos -->
+        <section class="management-section">
+            <div class="section-header">
+                <h2>📁 Projetos</h2>
+                <button onclick="showProjectModal()" class="btn-primary">+ Novo Projeto</button>
+            </div>
+            <div id="projectsContainer" class="cards-container"></div>
+        </section>
 
+        <!-- Gestão de Pessoas -->
+        <section class="management-section">
+            <div class="section-header">
+                <h2>👥 Equipa</h2>
+                <button onclick="showPersonModal()" class="btn-primary">+ Adicionar Pessoa</button>
+            </div>
+            <div id="peopleContainer" class="cards-container"></div>
+        </section>
+
+        <!-- Formulário de Tarefa Atualizado -->
+        <section class="task-form-section">
+            <h2>➕ Nova Tarefa</h2>
+            <form id="taskForm" class="advanced-form">
+                <div class="form-row">
+                    <input type="text" id="title" placeholder="Título da tarefa" required>
+                    <select id="project_id">
+                        <option value="">Selecionar Projeto</option>
+                    </select>
+                </div>
+                <textarea id="description" placeholder="Descrição da tarefa"></textarea>
+                <div class="form-row">
+                    <select id="priority">
+                        <option value="baixa">🟢 Baixa Prioridade</option>
+                        <option value="média" selected>🟡 Média Prioridade</option>
+                        <option value="alta">🔴 Alta Prioridade</option>
+                    </select>
+                    <select id="assigned_to">
+                        <option value="">Atribuir a...</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-submit">
+                    <span class="btn-text">Criar Tarefa</span>
+                    <span class="btn-loading" style="display: none;">⏳ Criando...</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- Filtros Avançados -->
+        <section class="filters-section">
+            <h3>🔍 Filtros</h3>
+            <div class="filters-grid">
+                <select id="projectFilter">
+                    <option value="">Todos os Projetos</option>
+                </select>
+                <select id="personFilter">
+                    <option value="">Todas as Pessoas</option>
+                </select>
+                <select id="statusFilter">
+                    <option value="all">Todos os Status</option>
+                    <option value="pendente">Pendentes</option>
+                    <option value="em-progresso">Em Progresso</option>
+                    <option value="concluída">Concluídas</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Lista de Tarefas -->
+        <section class="tasks-section">
+            <h2>📋 Tarefas</h2>
+            <div id="tasksContainer" class="tasks-grid"></div>
+        </section>
+    </div>
+
+    <!-- Modais -->
+    <div id="projectModal" class="modal">
+        <div class="modal-content">
+            <h3>📁 Novo Projeto</h3>
+            <form id="projectForm">
+                <input type="text" id="projectName" placeholder="Nome do projeto" required>
+                <textarea id="projectDescription" placeholder="Descrição"></textarea>
+                <input type="color" id="projectColor" value="#3498db">
+                <div class="modal-actions">
+                    <button type="button" onclick="hideProjectModal()">Cancelar</button>
+                    <button type="submit">Criar Projeto</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="personModal" class="modal">
+        <div class="modal-content">
+            <h3>👥 Nova Pessoa</h3>
+            <form id="personForm">
+                <input type="text" id="personName" placeholder="Nome completo" required>
+                <input type="email" id="personEmail" placeholder="Email">
+                <div class="modal-actions">
+                    <button type="button" onclick="hidePersonModal()">Cancelar</button>
+                    <button type="submit">Adicionar</button>
+                </div>
+            </form>
+        </div>
+    </div>
         <div class="task-form">
             <h3>➕ Nova Tarefa</h3>
             <form id="taskForm">

@@ -1,4 +1,11 @@
-const { pool } = require('../database');
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+//const { pool } = require('../database');
 
 async function runMigrations() {
   try {
@@ -42,8 +49,8 @@ async function runMigrations() {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
-
-    // Tabela de relação muitos-para-muitos (tarefas podem ter múltiplas pessoas)
+  
+    // CREATE TABLE IF NOT EXISTS task_assignees Tabela de relação muitos-para-muitos (tarefas podem ter múltiplas pessoas)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS task_assignees (
         id SERIAL PRIMARY KEY,
@@ -54,28 +61,70 @@ async function runMigrations() {
       )
     `);
 
-    // Dados iniciais
+    // Dados iniciais INSERT INTO projects
     await pool.query(`
       INSERT INTO projects (name, description, color) VALUES
       ('Desenvolvimento', 'Tarefas de desenvolvimento de software', '#27ae60'),
       ('Design', 'Tarefas de design e UX/UI', '#e74c3c'),
-      ('Reuniões', 'Reuniões e planeamento', '#f39c12')
+      ('Reuniões', 'Reuniões e planeamento', '#f39c12'),
+      ('Pessoal', 'Tarefas pessoais e administrativas', '#3498db')
       ON CONFLICT DO NOTHING
     `);
-
+    
+    // INSERT INTO people (
     await pool.query(`
       INSERT INTO people (name, email) VALUES
       ('José Cabicho', 'jose.cabicho@email.com'),
       ('Maria Silva', 'maria.silva@email.com'),
-      ('Carlos Santos', 'carlos.santos@email.com')
+      ('Carlos Santos', 'carlos.santos@email.com'),
+      ('Ana Oliveira', 'ana.oliveira@email.com')
+      ON CONFLICT DO NOTHING
+    `);
+
+  // Dados iniciais :INSERT INTO projects
+    await pool.query(`
+      INSERT INTO projects (name, description, color) VALUES
+      ('Desenvolvimento', 'Tarefas de desenvolvimento de software', '#27ae60'),
+      ('Design', 'Tarefas de design e UX/UI', '#e74c3c'),
+      ('Reuniões', 'Reuniões e planeamento', '#f39c12'),
+      ('Pessoal', 'Tarefas pessoais e administrativas', '#3498db')
+      ON CONFLICT DO NOTHING
+    `);
+
+  //Dados iniciais : INSERT INTO people
+    await pool.query(`
+      INSERT INTO people (name, email) VALUES
+      ('José Cabicho', 'jose.cabicho@email.com'),
+      ('Maria Silva', 'maria.silva@email.com'),
+      ('Carlos Santos', 'carlos.santos@email.com'),
+      ('Ana Oliveira', 'ana.oliveira@email.com')
+      ON CONFLICT DO NOTHING
+    `);
+    
+  //Dados iniciais : INSERT INTO tasks
+    await pool.query(`
+      INSERT INTO tasks (title, description, priority, status, project_id, assigned_to) VALUES
+      ('Implementar sistema de autenticação', 'Desenvolver login e registo de usuários', 'alta', 'pendente', 1, 1),
+      ('Criar design do dashboard', 'Design da interface principal do sistema', 'média', 'em-progresso', 2, 2),
+      ('Reunião de planeamento semanal', 'Discutir objetivos e tarefas da semana', 'baixa', 'concluída', 3, 3),
+      ('Atualizar documentação', 'Melhorar documentação do projeto', 'média', 'pendente', 1, 4)
       ON CONFLICT DO NOTHING
     `);
 
     console.log('✅ Database schema criado com sucesso!');
+    process.exit(0);
+  } catch (error) {
+    console.error('❌ Erro nas migrações:', error);
+    process.exit(1);
+  }
+}
+/** 
+ *     console.log('✅ Database schema criado com sucesso!');
   } catch (error) {
     console.error('❌ Erro nas migrações:', error);
     throw error;
   }
-}
+
+*/
 
 module.exports = runMigrations;

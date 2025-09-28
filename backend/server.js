@@ -5,10 +5,21 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 10000;
 
+// Importar rotas
+const projectsRoutes = require('./routes/projects');
+const peopleRoutes = require('./routes/people');
+const tasksRoutes = require('./routes/tasks');
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
+
+// Rotas
+app.use('/api/projects', projectsRoutes);
+app.use('/api/people', peopleRoutes);
+app.use('/api/tasks', tasksRoutes);
+
 
 // 🔥 HEALTH CHECK
 app.get('/health', (req, res) => {

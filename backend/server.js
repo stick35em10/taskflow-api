@@ -115,34 +115,99 @@ app.post('/api/tasks', async (req, res) => {
   }
 });
 
-// 🔥 PUT /api/tasks/:id
+// 🔥 PUT /api/tasks/:id - ROTA COMPLETA
 app.put('/api/tasks/:id', async (req, res) => {
   try {
     const taskId = parseInt(req.params.id);
-    const { status } = req.body;
+    const { title, description, priority, status } = req.body;
     
-    // Fallback para memória (simples)
+    console.log(`📥 PUT /api/tasks/${taskId}`, req.body);
+
+    // Tenta usar PostgreSQL se disponível
+    if (process.env.DATABASE_URL) {
+      const { Pool } = require('pg');
+      const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      });
+      
+      const result = await pool.query(
+        `UPDATE tasks 
+         SET title = COALESCE($1, title),
+             description = COALESCE($2, description),
+             priority = COALESCE($3, priority),
+             status = COALESCE($4, status)
+         WHERE id = $5
+         RETURNING id, title, description, priority, status, created_at as "createdAt"`,
+        [title, description, priority, status, taskId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Tarefa não encontrada' });
+      }
+      
+      return res.json(result.rows[0]);
+    }
+    
+    // Fallback para memória
     const taskIndex = tasks.findIndex(task => task.id === taskId);
     
     if (taskIndex === -1) {
       return res.status(404).json({ error: 'Tarefa não encontrada' });
     }
     
-    tasks[taskIndex].status = status;
+    
+    tasks[taskIndex] = { 
+      ...tasks[taskIndex], 
+      ...req.body,
+      // Mantém created_at original, só atualiza os campos fornecidos
+    };
+    
     res.json(tasks[taskIndex]);
     
   } catch (error) {
+    console.error('❌ Erro em PUT /api/tasks:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
-// 🔥 DELETE /api/tasks/:id
+// 🔥 DELETE /api/tasks/:id - ROTA COMPLETA
 app.delete('/api/tasks/:id', async (req, res) => {
   try {
-    const taskId = parseInt(req.params.id);
+    const taskId = parseInt(req.params.id);    
+    console.log(`📥 DELETE /api/tasks/${taskId}`);
+    // Tenta usar PostgreSQL se disponível
+    if (process.env.DATABASE_URL) {
+      const { Pool } = require('pg');
+      const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      });
+      
+      const result = await pool.query(
+        'DELETE FROM tasks WHERE id = $1 RETURNING *',
+        [taskId]
+      );
+      
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'Tarefa não encontrada' });
+      }
+      
+      return res.json({ message: 'Tarefa removida com sucesso' });
+    }
+    
+    // Fallback para memória
+    const initialLength = tasks.length;
     tasks = tasks.filter(task => task.id !== taskId);
+    
+    if (tasks.length === initialLength) {
+      return res.status(404).json({ error: 'Tarefa não encontrada' });
+    }
+    
     res.json({ message: 'Tarefa removida com sucesso' });
+    
   } catch (error) {
+    console.error('❌ Erro em DELETE /api/tasks:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });

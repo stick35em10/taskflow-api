@@ -9,8 +9,7 @@ services:
     buildCommand: |
       echo "📦 Instalando dependências no backend..."
       cd backend && npm install
-      echo "📦 npm run migrate no backend..."
-      cd backend && npm run migrate
+      
     startCommand: |
       echo "🎯 Iniciando TaskFlow..."
       cd backend && node server.js

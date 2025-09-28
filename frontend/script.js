@@ -338,6 +338,8 @@ testConnection();
 // 🔧 CORREÇÃO: Funções globais para os eventos onclick
 window.updateTask = async function(id, status) {
     try {
+        console.log(`🔄 Atualizando tarefa ${id} para: ${status}`);
+
         const response = await fetch(`${API_URL}/${id}`, {
             method: 'PUT',
             headers: {
@@ -347,7 +349,15 @@ window.updateTask = async function(id, status) {
         });
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Tenta parsear o erro
+            let errorMessage = `HTTP ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorMessage;
+            } catch (e) {
+                // Ignora erro de parse
+            }
+            throw new Error(errorMessage);
         }
         
         const updatedTask = await response.json();
@@ -362,7 +372,19 @@ window.updateTask = async function(id, status) {
         
     } catch (error) {
         console.error('❌ Erro ao atualizar tarefa:', error);
-        showNotification('❌ Erro ao atualizar tarefa', 'error');
+
+        // Fallback local se for erro de rede/CORS
+        if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+        const taskIndex = tasks.findIndex(t => t.id === id);
+        if (taskIndex !== -1) {
+            tasks[taskIndex].status = status;
+            renderTasks();
+            updateStats();
+            showNotification('🔧 Status atualizado localmente', 'info');
+        }
+        } else {
+        showNotification(`❌ Erro: ${error.message}`, 'error');
+        }
     }
 };
 
@@ -387,7 +409,15 @@ window.deleteTask = async function(id) {
         
     } catch (error) {
         console.error('❌ Erro ao excluir tarefa:', error);
-        showNotification('❌ Erro ao excluir tarefa', 'error');
+        // Fallback local
+        if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+        tasks = tasks.filter(t => t.id !== id);
+        renderTasks();
+        updateStats();
+        showNotification('🗑️ Tarefa excluída localmente', 'info');
+        } else {
+        showNotification(`❌ Erro: ${error.message}`, 'error');
+        }
     }
 };
 
